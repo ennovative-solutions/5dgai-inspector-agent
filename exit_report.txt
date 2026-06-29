@@ -1,0 +1,12 @@
+Exit Inspection Report
+Date: 2026-01-01
+Property: Apt 4B
+
+Living Room:
+- Walls: Large hole in the drywall near the TV outlet, needs repair.
+- Carpet: Large dark red stain (likely wine) in the center of the room.
+- Windows: Intact.
+
+Kitchen:
+- Oven: Dirty, greasy, not cleaned.
+- Fridge: Clean and working.

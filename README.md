@@ -17,6 +17,28 @@ inspector-agent/
 ```
 
 > 💡 **Tip:** Use [Antigravity CLI](https://antigravity.google/) for AI-assisted development - project context is pre-configured in `GEMINI.md`.
+## Agent Architecture
+
+This project implements a multi-agent validation pipeline using a `SequentialAgent` workflow:
+
+```mermaid
+graph TD
+    User([User Request]) --> inspector[Inspector Agent]
+    inspector -->|Compares documents & searches costs| doc1[inspection_report]
+    doc1 --> validator[Validator Agent]
+    validator -->|Verifies costs & flags exaggerations| final[Validation Report]
+    final --> End([Final Response])
+```
+
+1. **Inspector Agent (`inspector_agent`)**:
+   - **Role**: Compares the entry and exit property inspection documents, identifies damages/cleanliness issues beyond normal wear and tear, and determines the property's location.
+   - **Tools**: `read_document` (for loading reports) and `google_search` (to query local market repair rates).
+   - **Output**: Stores the compiled inspection report in session state (`inspection_report`).
+
+2. **Validator Agent (`validator_agent`)**:
+   - **Role**: Acts as a real estate expert. It evaluates the `{inspection_report}` from state to ensure the estimated repair costs are realistic, flags any exaggerated values (too high or too low), and checks comparison logic.
+   - **Tools**: `google_search` (to verify local repair rates if needed).
+   - **Output**: Compiles the final Validation Report with verified/adjusted costs.
 
 ## Requirements
 

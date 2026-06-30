@@ -17,7 +17,7 @@ import datetime
 from zoneinfo import ZoneInfo
 from functools import cached_property
 
-from google.adk.agents import Agent
+from google.adk.agents import Agent, SequentialAgent
 from google.adk.apps import App
 from google.adk.models import Gemini
 from google.genai import types
@@ -71,39 +71,83 @@ class CustomGemini(Gemini):
             from google.adk.models import LlmResponse
             from google.genai import types
 
-            text = (
-                "Comparison summary:\n"
-                "- Wall hole identified. Estimated repair: $100. (Source: example.com)\n"
-                "- Dirty carpet identified. Estimated repair: $150. (Source: example.com)\n"
-                "Total estimated renovation cost: $250."
-            )
-            grounding_metadata = types.GroundingMetadata(
-                web_search_queries=[
-                    "drywall repair cost Seattle",
-                    "carpet cleaning cost Seattle",
-                ],
-                grounding_chunks=[
-                    types.GroundingChunk(
-                        web=types.GroundingChunkWeb(
-                            uri="https://example.com/repair-costs",
-                            title="Drywall and Carpet Repair Cost Estimates",
-                            domain="example.com",
+            system_instruction = ""
+            if llm_request.config and llm_request.config.system_instruction:
+                if isinstance(llm_request.config.system_instruction, str):
+                    system_instruction = llm_request.config.system_instruction
+                else:
+                    system_instruction = str(llm_request.config.system_instruction)
+
+            if "validator" in system_instruction.lower():
+                text = (
+                    "Validation Report:\n"
+                    "- Drywall repair estimate of $100 seems realistic.\n"
+                    "- Carpet cleaning estimate of $150 is appropriate.\n"
+                    "All costs are verified and realistic.\n"
+                    "Verified total estimated renovation cost: $250."
+                )
+                grounding_metadata = types.GroundingMetadata(
+                    web_search_queries=[
+                        "average cost drywall repair Seattle",
+                        "carpet cleaning rates Seattle",
+                    ],
+                    grounding_chunks=[
+                        types.GroundingChunk(
+                            web=types.GroundingChunkWeb(
+                                uri="https://example.com/rates",
+                                title="Standard Seattle Handyman Rates",
+                                domain="example.com",
+                            )
                         )
-                    )
-                ],
-                grounding_supports=[
-                    types.GroundingSupport(
-                        grounding_chunk_indices=[0],
-                        confidence_scores=[0.95],
-                        segment=types.Segment(
-                            part_index=0,
-                            start_index=0,
-                            end_index=150,
-                            text="Drywall repair cost: $100. Carpet cleaning: $150.",
-                        ),
-                    )
-                ],
-            )
+                    ],
+                    grounding_supports=[
+                        types.GroundingSupport(
+                            grounding_chunk_indices=[0],
+                            confidence_scores=[0.98],
+                            segment=types.Segment(
+                                part_index=0,
+                                start_index=0,
+                                end_index=150,
+                                text="Drywall repair typically costs $100. Carpet cleaning is $150.",
+                            ),
+                        )
+                    ],
+                )
+            else:
+                text = (
+                    "Comparison summary:\n"
+                    "- Wall hole identified. Estimated repair: $100. (Source: example.com)\n"
+                    "- Dirty carpet identified. Estimated repair: $150. (Source: example.com)\n"
+                    "Total estimated renovation cost: $250."
+                )
+                grounding_metadata = types.GroundingMetadata(
+                    web_search_queries=[
+                        "drywall repair cost Seattle",
+                        "carpet cleaning cost Seattle",
+                    ],
+                    grounding_chunks=[
+                        types.GroundingChunk(
+                            web=types.GroundingChunkWeb(
+                                uri="https://example.com/repair-costs",
+                                title="Drywall and Carpet Repair Cost Estimates",
+                                domain="example.com",
+                            )
+                        )
+                    ],
+                    grounding_supports=[
+                        types.GroundingSupport(
+                            grounding_chunk_indices=[0],
+                            confidence_scores=[0.95],
+                            segment=types.Segment(
+                                part_index=0,
+                                start_index=0,
+                                end_index=150,
+                                text="Drywall repair cost: $100. Carpet cleaning: $150.",
+                            ),
+                        )
+                    ],
+                )
+
             yield LlmResponse(
                 content=types.Content(
                     role="model", parts=[types.Part.from_text(text=text)]
@@ -139,7 +183,7 @@ model = CustomGemini(
     retry_options=types.HttpRetryOptions(attempts=3),
 )
 
-root_agent = Agent(
+inspector_agent = Agent(
     name="inspector_agent",
     model=model,
     instruction=(
@@ -162,6 +206,32 @@ root_agent = Agent(
         "Use the tools provided to read documents and perform Google Searches for cost estimates."
     ),
     tools=[read_document, GoogleSearchTool(bypass_multi_tools_limit=True)],
+    output_key="inspection_report",
+)
+
+validator_agent = Agent(
+    name="validator_agent",
+    model=model,
+    instruction=(
+        "You are a real estate expert validator agent. Your task is to verify the output of the inspector agent "
+        "which has been stored in: {inspection_report}.\n\n"
+        "Please perform the following verification tasks:\n"
+        "1. Check if the repair costs are estimated realistically.\n"
+        "2. Verify the comparison and cost estimation logic.\n"
+        "3. Identify and flag any exaggerated costs (either significantly too low or too high).\n"
+        "4. If any estimates seem unrealistic or incorrect, propose adjusted costs with brief reasoning.\n"
+        "5. If needed, use the google_search tool to check for local repair market prices or standard rates to ensure realism.\n"
+        "6. Produce a final report containing:\n"
+        "   - Your validation assessment (whether the inspector's report is realistic or has issues).\n"
+        "   - Details of any flagged, exaggerated, or unrealistic costs.\n"
+        "   - The final adjusted / verified costs for each issue and the new/verified total estimated renovation cost."
+    ),
+    tools=[GoogleSearchTool(bypass_multi_tools_limit=True)],
+)
+
+root_agent = SequentialAgent(
+    name="inspector_workflow",
+    sub_agents=[inspector_agent, validator_agent],
 )
 
 app = App(

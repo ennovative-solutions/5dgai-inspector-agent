@@ -206,6 +206,23 @@ def duckduckgo_search(query: str) -> dict:
         return {"status": "error", "message": str(e)}
 
 
+def analyze_property_damage_image(image_path: str) -> dict:
+    """Analyzes an image of a broken/damaged part of a property to identify the damage and recommended reparation.
+
+    Args:
+        image_path: The local path or GCS URI (gs://...) to the image of the damage.
+
+    Returns:
+        A dict with keys 'status' and 'result' (detailing the damage and reparation) or 'error' (detailing the error).
+    """
+    try:
+        from inspector_agent_app.app_utils.vision import analyze_damage_image
+        result = analyze_damage_image(image_path=image_path)
+        return {"status": "success", "result": result}
+    except Exception as e:
+        return {"status": "error", "message": str(e)}
+
+
 # Initialize CustomGemini model with mock credentials
 model = CustomGemini(
     model="gemini-3.5-flash",
@@ -240,7 +257,7 @@ inspector_agent = Agent(
         "1. In the first turn, the user will provide the Entry Inspection Report. You must simply acknowledge receipt of the Entry report, summarize the initial state of the property, and ask the user to provide the Exit Inspection Report. Do not call any search tools or find handymen at this stage.\n"
         "2. Once the user provides the Exit Inspection Report, compare the state of the property between the entry and exit reports, identify any damages/alterations not caused by normal wear and tear, determine the location, and proceed with estimation and handyman lookup.\n\n"
         "Follow these steps when exit report is provided:\n"
-        "- Step A: Perform a detailed comparison of the state of the property between the entry and exit documents.\n"
+        "- Step A: Perform a detailed comparison of the state of the property between the entry and exit documents. If the user provides a picture of a damaged or broken part of the property, use the `analyze_property_damage_image` tool to investigate the damage, check what damage is visible in the picture, and define the reparation that can be done.\n"
         "- Step B: Identify any damages, dirt, or alterations that are not caused by normal wear and tear.\n"
         "- Step C: Determine the location or city of the property from the documents. CRITICAL: If the location/city is not specified in either the Entry or Exit Inspection Report, you MUST stop and ask the user to provide the location of the property. Do not call any search tools or find handymen, and do not perform Step D, E, or F until the location is provided by the user.\n"
         "- Step D: Estimate the cost of reparation or replacement for each identified issue by searching online "
@@ -252,7 +269,7 @@ inspector_agent = Agent(
         "- Step F: Compile a final structured report detailing the comparison, cost estimates, matching handyman info, and total estimated cost of renovation.\n\n"
         "CRITICAL BEHAVIOR: Never search the web or filesystem for the entry or exit reports themselves. Only use duckduckgo_search to find repair and cleaning costs for the specific damages identified."
     ),
-    tools=[duckduckgo_search, mcp_toolset],
+    tools=[duckduckgo_search, mcp_toolset, analyze_property_damage_image],
     output_key="inspection_report",
 )
 

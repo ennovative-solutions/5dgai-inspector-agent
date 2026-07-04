@@ -2,13 +2,13 @@ import os
 from unittest.mock import MagicMock, patch, mock_open
 import pytest
 
-from inspector_agent_app.app_utils.vision import compare_images
+from inspector_agent_app.app_utils.vision import analyze_damage_image
 
 @patch("inspector_agent_app.app_utils.vision.vertexai.init")
 @patch("inspector_agent_app.app_utils.vision.Part.from_data")
 @patch("inspector_agent_app.app_utils.vision.Part.from_uri")
 @patch("inspector_agent_app.app_utils.vision.GenerativeModel")
-def test_compare_images_local(
+def test_analyze_damage_image_local(
     mock_model_class, mock_from_uri, mock_from_data, mock_init
 ) -> None:
     # Arrange
@@ -24,9 +24,8 @@ def test_compare_images_local(
     with patch("os.path.exists", return_value=True), patch(
         "builtins.open", mock_open(read_data=b"fake_image_bytes")
     ):
-        result = compare_images(
-            before_image_path="before.png",
-            after_image_path="after.jpg",
+        result = analyze_damage_image(
+            image_path="damage.png",
             prompt="Find damages",
             project_id="test-project",
             location="europe-west1",
@@ -34,11 +33,10 @@ def test_compare_images_local(
 
     # Assert
     mock_init.assert_called_once_with(project="test-project", location="europe-west1")
-    mock_from_data.assert_any_call(data=b"fake_image_bytes", mime_type="image/png")
-    mock_from_data.assert_any_call(data=b"fake_image_bytes", mime_type="image/jpeg")
+    mock_from_data.assert_called_once_with(data=b"fake_image_bytes", mime_type="image/png")
     mock_model_class.assert_called_once_with("gemini-1.5-flash")
     mock_model_instance.generate_content.assert_called_once_with(
-        ["Part(local, image/png)", "Part(local, image/jpeg)", "Find damages"]
+        ["Part(local, image/png)", "Find damages"]
     )
     assert result == "Mocked damage description: stain in carpet."
 
@@ -47,7 +45,7 @@ def test_compare_images_local(
 @patch("inspector_agent_app.app_utils.vision.Part.from_data")
 @patch("inspector_agent_app.app_utils.vision.Part.from_uri")
 @patch("inspector_agent_app.app_utils.vision.GenerativeModel")
-def test_compare_images_gcs(
+def test_analyze_damage_image_gcs(
     mock_model_class, mock_from_uri, mock_from_data, mock_init
 ) -> None:
     # Arrange
@@ -60,9 +58,8 @@ def test_compare_images_gcs(
     mock_from_uri.side_effect = lambda uri, mime_type: f"Part(gcs, {uri}, {mime_type})"
 
     # Act
-    result = compare_images(
-        before_image_path="gs://my-bucket/before.png",
-        after_image_path="gs://my-bucket/after.webp",
+    result = analyze_damage_image(
+        image_path="gs://my-bucket/damage.webp",
         prompt=None,
         project_id="test-project",
         location="europe-west1",
@@ -70,11 +67,9 @@ def test_compare_images_gcs(
 
     # Assert
     mock_init.assert_called_once_with(project="test-project", location="europe-west1")
-    mock_from_uri.assert_any_call(uri="gs://my-bucket/before.png", mime_type="image/png")
-    mock_from_uri.assert_any_call(uri="gs://my-bucket/after.webp", mime_type="image/webp")
+    mock_from_uri.assert_called_once_with(uri="gs://my-bucket/damage.webp", mime_type="image/webp")
     
     called_args = mock_model_instance.generate_content.call_args[0][0]
-    assert called_args[0] == "Part(gcs, gs://my-bucket/before.png, image/png)"
-    assert called_args[1] == "Part(gcs, gs://my-bucket/after.webp, image/webp)"
-    assert "voor'-situatie" in called_args[2]
+    assert called_args[0] == "Part(gcs, gs://my-bucket/damage.webp, image/webp)"
+    assert "foto van een beschadigd" in called_args[1]
     assert result == "Mocked GCS damage description."

@@ -2,12 +2,12 @@ import os
 from unittest.mock import MagicMock, patch, mock_open
 import pytest
 
-from app.app_utils.vision import compare_images
+from inspector_agent_app.app_utils.vision import compare_images
 
-@patch("app.app_utils.vision.vertexai.init")
-@patch("app.app_utils.vision.Part.from_data")
-@patch("app.app_utils.vision.Part.from_uri")
-@patch("app.app_utils.vision.GenerativeModel")
+@patch("inspector_agent_app.app_utils.vision.vertexai.init")
+@patch("inspector_agent_app.app_utils.vision.Part.from_data")
+@patch("inspector_agent_app.app_utils.vision.Part.from_uri")
+@patch("inspector_agent_app.app_utils.vision.GenerativeModel")
 def test_compare_images_local(
     mock_model_class, mock_from_uri, mock_from_data, mock_init
 ) -> None:
@@ -43,10 +43,10 @@ def test_compare_images_local(
     assert result == "Mocked damage description: stain in carpet."
 
 
-@patch("app.app_utils.vision.vertexai.init")
-@patch("app.app_utils.vision.Part.from_data")
-@patch("app.app_utils.vision.Part.from_uri")
-@patch("app.app_utils.vision.GenerativeModel")
+@patch("inspector_agent_app.app_utils.vision.vertexai.init")
+@patch("inspector_agent_app.app_utils.vision.Part.from_data")
+@patch("inspector_agent_app.app_utils.vision.Part.from_uri")
+@patch("inspector_agent_app.app_utils.vision.GenerativeModel")
 def test_compare_images_gcs(
     mock_model_class, mock_from_uri, mock_from_data, mock_init
 ) -> None:

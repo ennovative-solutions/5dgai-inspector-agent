@@ -16,6 +16,8 @@ dependencies = [
     "pre-commit",
     "pre-commit-hooks",
     "semgrep",
+    "mcp>=1.28.1",
+    "ddgs>=9.14.4",
 ]
 requires-python = ">=3.11,<3.14"
 
@@ -56,7 +58,7 @@ select = [
 ignore = ["E501", "C901", "B006"] # ignore line too long, too complex
 
 [tool.ruff.lint.isort]
-known-first-party = ["app", "frontend"]
+known-first-party = ["inspector_agent_app", "frontend"]
 
 [tool.ty]
 # ty is Astral's Rust-based type checker (same team as ruff/uv)
@@ -94,6 +96,6 @@ pythonpath = "."
 asyncio_default_fixture_loop_scope = "function"
 
 [tool.hatch.build.targets.wheel]
-packages = ["app","frontend"]
+packages = ["inspector_agent_app","frontend"]
 
 

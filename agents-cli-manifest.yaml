@@ -1,6 +1,6 @@
 name: "inspector-agent"
 acli_version: "0.6.1"
-agent_directory: "app"
+agent_directory: "inspector_agent_app"
 region: "us-east1"
 base_template: "adk"
 generated_at: "2026-06-29T17:28:26.344072+00:00"

@@ -24,10 +24,10 @@ from google.adk.cli.fast_api import get_fast_api_app
 from google.adk.runners import Runner
 from google.cloud import logging as google_cloud_logging
 
-from app.app_utils import services
-from app.app_utils.a2a import attach_a2a_routes
-from app.app_utils.telemetry import setup_telemetry
-from app.app_utils.typing import Feedback
+from inspector_agent_app.app_utils import services
+from inspector_agent_app.app_utils.a2a import attach_a2a_routes
+from inspector_agent_app.app_utils.telemetry import setup_telemetry
+from inspector_agent_app.app_utils.typing import Feedback
 
 load_dotenv()
 setup_telemetry()
@@ -48,8 +48,8 @@ AGENT_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
 @contextlib.asynccontextmanager
 async def lifespan(app: FastAPI) -> AsyncIterator[None]:
-    from app.agent import app as adk_app
-    from app.agent import root_agent
+    from inspector_agent_app.agent import app as adk_app
+    from inspector_agent_app.agent import root_agent
 
     runner = Runner(
         app=adk_app,

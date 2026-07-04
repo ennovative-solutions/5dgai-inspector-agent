@@ -57,7 +57,7 @@ class CustomGemini(Gemini):
 
         kwargs = {
             "http_options": types.HttpOptions(**kwargs_for_http_options),
-            "api_key": "***REDACTED_API_KEY***",
+            "api_key": os.getenv("GEMINI_API_KEY"),
         }
         if self.model.startswith("projects/"):
             kwargs["enterprise"] = True

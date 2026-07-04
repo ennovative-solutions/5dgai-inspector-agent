@@ -57,7 +57,7 @@ class CustomGemini(Gemini):
 
         kwargs = {
             "http_options": types.HttpOptions(**kwargs_for_http_options),
-            "api_key": os.getenv("GEMINI_API_KEY"),
+            "api_key": "***REDACTED_API_KEY***",
         }
         if self.model.startswith("projects/"):
             kwargs["enterprise"] = True
@@ -209,7 +209,11 @@ def duckduckgo_search(query: str) -> dict:
 # Initialize CustomGemini model with mock credentials
 model = CustomGemini(
     model="gemini-3.5-flash",
-    retry_options=types.HttpRetryOptions(attempts=3),
+    retry_options=types.HttpRetryOptions(
+        attempts=6,
+        initial_delay=2.0,
+        http_status_codes=[429, 500, 502, 503, 504],
+    ),
 )
 
 mcp_toolset = McpToolset(
@@ -230,29 +234,25 @@ inspector_agent = Agent(
     name="inspector_agent",
     model=model,
     instruction=(
-        "You are an AI Inspector Agent. Your main purpose is to estimate the cost of renovation of "
-        "rental properties based on the documents created when a tenant starts renting (entry document) "
-        "and at the point of exit (exit document).\n\n"
-        "Follow these steps:\n"
-        "1. Retrieve the entry and exit document contents. If the user provides file paths, load them using the read_document tool. If the user has already provided/pasted the text contents directly in their message, use that text directly without calling the read_document tool.\n"
-        "2. Perform a detailed comparison of the state of the property between the entry and exit documents.\n"
-        "3. Identify any damages, dirt, or alterations that are not caused by normal wear and tear.\n"
-        "4. Determine the location or city of the property from the documents.\n"
-        "5. Estimate the cost of reparation or replacement for each identified issue by searching online "
+        "You are an AI property inspector agent. Your main purpose is to estimate the cost of property renovation "
+        "by comparing the entry state and exit state of a rental property.\n\n"
+        "The conversation will progress in multiple turns:\n"
+        "1. In the first turn, the user will provide the Entry Inspection Report. You must simply acknowledge receipt of the Entry report, summarize the initial state of the property, and ask the user to provide the Exit Inspection Report. Do not call any search tools or find handymen at this stage.\n"
+        "2. Once the user provides the Exit Inspection Report, compare the state of the property between the entry and exit reports, identify any damages/alterations not caused by normal wear and tear, determine the location, and proceed with estimation and handyman lookup.\n\n"
+        "Follow these steps when exit report is provided:\n"
+        "- Step A: Perform a detailed comparison of the state of the property between the entry and exit documents.\n"
+        "- Step B: Identify any damages, dirt, or alterations that are not caused by normal wear and tear.\n"
+        "- Step C: Determine the location or city of the property from the documents. CRITICAL: If the location/city is not specified in either the Entry or Exit Inspection Report, you MUST stop and ask the user to provide the location of the property. Do not call any search tools or find handymen, and do not perform Step D, E, or F until the location is provided by the user.\n"
+        "- Step D: Estimate the cost of reparation or replacement for each identified issue by searching online "
         "using the duckduckgo_search tool. Ensure your search query includes the extracted property location "
         "to retrieve accurate local market cost estimates (e.g., 'drywall hole repair cost Seattle').\n"
-        "6. For each identified damage or repair issue, use the find_handymen tool (specifying the damage "
+        "- Step E: For each identified damage or repair issue, use the find_handymen tool (specifying the damage "
         "description as 'problem' and the property location/city as 'location') to retrieve details of a "
         "repairman who can make the fix.\n"
-        "7. Compile a final structured report detailing:\n"
-        "   - The list of damages/issues found.\n"
-        "   - The comparison summary per room or item.\n"
-        "   - The estimated cost of reparation/renovation for each issue.\n"
-        "   - The details of the matching handyman (such as name, contact, etc.) who can perform the fix for each issue.\n"
-        "   - The total estimated cost of renovation.\n\n"
-        "Use the tools provided (read_document, duckduckgo_search, find_handymen) as appropriate."
+        "- Step F: Compile a final structured report detailing the comparison, cost estimates, matching handyman info, and total estimated cost of renovation.\n\n"
+        "CRITICAL BEHAVIOR: Never search the web or filesystem for the entry or exit reports themselves. Only use duckduckgo_search to find repair and cleaning costs for the specific damages identified."
     ),
-    tools=[read_document, duckduckgo_search, mcp_toolset],
+    tools=[duckduckgo_search, mcp_toolset],
     output_key="inspection_report",
 )
 
@@ -262,7 +262,8 @@ validator_agent = Agent(
     instruction=(
         "You are a real estate expert validator agent. Your task is to verify the output of the inspector agent "
         "which has been stored in: {inspection_report}.\n\n"
-        "Please perform the following verification tasks:\n"
+        "CRITICAL: If the inspector agent is still waiting for the Exit Inspection Report (i.e. the exit report has not been provided yet) or is asking the user for the location of the property (because it was not specified in the reports), simply confirm this status / support the request and do not call any search tools or perform validation.\n\n"
+        "If the exit report has been compared and verified, perform the following verification tasks:\n"
         "1. Check if the repair costs are estimated realistically.\n"
         "2. Verify the comparison and cost estimation logic.\n"
         "3. Identify and flag any exaggerated costs (either significantly too low or too high).\n"

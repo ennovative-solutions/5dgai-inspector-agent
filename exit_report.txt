@@ -4,9 +4,9 @@ Property: Apt 4B
 
 Living Room:
 - Walls: Large hole in the drywall near the TV outlet, needs repair.
-- Carpet: Large dark red stain (likely wine) in the center of the room.
+- Carpet: Intact
 - Windows: Intact.
 
 Kitchen:
-- Oven: Dirty, greasy, not cleaned.
+- Oven: Clean and working.
 - Fridge: Clean and working.

@@ -233,13 +233,21 @@ model = CustomGemini(
     ),
 )
 
+# Path to the local checkout of the repairman MCP server (find_handymen tool).
+# See https://github.com/ennovative-solutions/5dgai-inspector-agent-mcp-server
+# Override with the REPAIRMAN_MCP_SERVER_DIR environment variable.
+repairman_mcp_server_dir = os.getenv(
+    "REPAIRMAN_MCP_SERVER_DIR",
+    os.path.expanduser("~/Development/repairman-mcp-server"),
+)
+
 mcp_toolset = McpToolset(
     connection_params=StdioConnectionParams(
         server_params=StdioServerParameters(
             command="uv",
             args=[
                 "--directory",
-                "/Users/dennisbaerten/Development/repairman-mcp-server",
+                repairman_mcp_server_dir,
                 "run",
                 "repairman-mcp-server",
             ],
